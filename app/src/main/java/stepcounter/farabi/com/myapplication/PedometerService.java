@@ -14,6 +14,10 @@ import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import com.anupcowkur.reservoir.Reservoir;
+import com.anupcowkur.reservoir.ReservoirPutCallback;
+
+import java.io.IOException;
 import java.util.Date;
 
 import stepcounter.farabi.com.myapplication.Interfaces.StepListener;
@@ -24,11 +28,12 @@ import stepcounter.farabi.com.myapplication.StepCounter.StepDetector;
  */
 
 public class PedometerService  extends Service implements SensorEventListener , StepListener {
-    private int numSteps = 0 ;
+    private   int numSteps = 0 ;
     private StepDetector simpleStepDetector;
     private SensorManager sensorManager;
     private Date currentdate ;
     private Sensor accel;
+
 
     private UpdateActivity mUpdateAcitivity;
     public class PedometerBinder extends Binder {
@@ -49,10 +54,40 @@ public class PedometerService  extends Service implements SensorEventListener , 
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+
+ //reservoir library , avoid  reinitializing numsteps when service is restarted .
+
+        try {
+            Reservoir.init(this, 2048); //in bytes
+        } catch (IOException e) {
+            //failure
+        }
 //thread to handle the long process
         new Thread(new Runnable() {
             @Override
             public void run() {
+                try {
+                  numSteps =   Reservoir.get("myKey", Integer.class);
+                } catch (IOException e) {
+
+                    Reservoir.putAsync("myKey",  numSteps, new ReservoirPutCallback() {
+                        @Override
+                        public void onSuccess() {
+                            //success
+                        }
+
+                        @Override
+                        public void onFailure(Exception e) {
+                            //error
+                        }
+                    });
+                    //failure
+                }
+
+                catch ( Exception e ) {
+
+                }
+
                 currentdate= new Date () ;
                 sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                 accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -99,6 +134,19 @@ public class PedometerService  extends Service implements SensorEventListener , 
     @Override
     public void step(long timeNs) {
         numSteps++;
+        //Save numSteps  locally ( Disklrucache)
+        Reservoir.putAsync("myKey",  numSteps, new ReservoirPutCallback() {
+            @Override
+            public void onSuccess() {
+                //success
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                //error
+            }
+        });
+
         Log.e("Step made " , String.valueOf(numSteps)) ;
 
         if ( MainActivity.active)
@@ -106,7 +154,7 @@ public class PedometerService  extends Service implements SensorEventListener , 
 
     }
 
-    //chech if date  changed .
+    //check if date  changed .
 
     private static  boolean daypassed ( Date today , Date date   ) {
 
@@ -123,7 +171,7 @@ public class PedometerService  extends Service implements SensorEventListener , 
 
 
      public  int getsteps()  {
-          return this.numSteps ;
+          return numSteps ;
 
      }
     public void setCallbacks(UpdateActivity callbacks) {

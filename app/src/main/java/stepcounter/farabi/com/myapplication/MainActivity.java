@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements UpdateActivity {
         // Bind to LocalService
         final Intent intent = new Intent(getApplicationContext(), PedometerService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
-        startService(intent);
+       //   startService(intent);
 
 
 
@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity implements UpdateActivity {
         @Override
         public void onServiceDisconnected(ComponentName arg0) {
             mBound = false;
+
 
         }
     };
